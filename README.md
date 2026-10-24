@@ -8,7 +8,7 @@ SwiftUI + SwiftData, iOS 17+, iPhone/iPad. Open `SyncPix.xcodeproj`, select the 
 
 Only **Home** and **Together** are main tabs. Home contains the current canvas, study mode/preset, available Pixel Credits, a one-tap Start Studying action, Create Canvas, and a Gallery link. Personal canvases remain available offline. Gallery shows completed artworks and retains access to older unfinished personal canvases.
 
-New canvases use 24×24 pixel colors, divided into 36 blocks of 4×4 pixels. Existing 16×16/32×32 canvases remain readable. Import through PhotosPicker, drag/pinch to crop a square, and use the zoom/position controls as accessible alternatives. Core Graphics samples the source photo; the pixel view draws flat, non-antialiased cells with no interpolation between colors, equivalent to nearest-neighbor enlargement. Color Restore starts grayscale, Mystery Reveal starts neutral.
+New canvases use 24×24 pixel colors, divided into 36 blocks of 4×4 pixels. Existing 16×16/32×32 canvases remain readable. Import through PhotosPicker, drag/pinch to crop a square, and use the zoom/position controls as accessible alternatives. UIImage orientation is normalized (including mirrored EXIF orientations), then Core Graphics samples the square crop into opaque sRGB values. PixelCanvasView enlarges the exact-size raster with `.interpolation(.none)` and fades only the unlocked block mask; Reduce Motion disables that fade. Color Restore starts grayscale, Mystery Reveal starts neutral.
 
 Timer/stopwatch, photo confirmation, carried study seconds, idempotent awards, local notifications, saved history, and study-photo deletion are preserved. Home starts the selected study mode directly; ongoing sessions reopen without starting another one. Study-proof photos stay local and are never uploaded. Canceled sessions yield no time or credits.
 
@@ -38,9 +38,12 @@ Mystery colors are hidden in recipient previews and thumbnails until blocks are 
 | File | Responsibility |
 | --- | --- |
 | `Models.swift` | StudySession, PixelCanvas with defaulted collaboration metadata, PixelSpend with separate demo receipts, ownership policy |
-| `Services.swift` | PixelProcessor, StudySessionManager, PixelCreditManager, CanvasRepository, CanvasViewModel, local CollaborationService |
+| `PixelArtProcessor.swift` | Orientation normalization, bounded crop, Core Graphics RGB sampling/raster reconstruction, shared PixelBlockLayout mapping |
+| `PixelCanvasView.swift` | Nearest-neighbor image enlargement and accessible-motion-aware block reveal mask |
+| `CanvasUnlockManager.swift` | Owner-checked local credit debit + block reveal in one save |
+| `Services.swift` | StudySessionManager, PixelCreditManager, CanvasRepository deletion, CanvasViewModel, local CollaborationService |
 | `ContentView.swift` | Two-tab shell, Home, pixel renderer, foreground timer reconciliation |
-| `CreateCanvasView.swift` | Photo import, bounded drag/zoom crop, fixed-resolution preview and save |
+| `PhotoCanvasCreatorView.swift` | Photo import, bounded drag/zoom crop, fixed-resolution preview and save |
 | `CanvasDetailView.swift` | Ownership selection, one unlock action, contribution/progress labels |
 | `TogetherView.swift` | Demo role selection, create/join, Photo Swap inbox and sent records |
 | `GalleryView.swift` | Home-accessible gallery and deletion |
@@ -72,5 +75,5 @@ A local SwiftData balance cannot atomically participate in a Firestore transacti
 
 ### Verification — 2026-10-25
 
-The app and tests built with Xcode 27.1, and all **13 XCTest cases passed** on iPhone 18 Pro / iOS 27.0 Simulator. Coverage includes both ownership layouts, consumed invites, owner-only atomic local spending, isolated Friend demo credits, one-way Photo Swap, shared completion, collaboration progress restored from disk, and the existing timing/reward/image tests. `git diff --check` passed. This round did not verify gesture interactions, screen layouts, real device notifications, iOS 17 runtime behavior, or multi-device operation; real multi-device collaboration is not implemented.
+The app and tests built with Xcode 27.1, and all **19 XCTest cases passed** on iPhone 18 Pro / iOS 27.0 Simulator. Coverage includes both ownership layouts, consumed invites, owner-only atomic local spending, isolated Friend demo credits, one-way Photo Swap, shared completion, collaboration progress restored from disk, the existing timing/reward tests, all eight UIImage orientations, exact 24×24 RGB round trips, 36 non-overlapping 16-pixel blocks, square-crop clamping, persisted original colors/reveals, and a 240×240 rendered Mystery snapshot checked for nearest-neighbor colors and block masking. `git diff --check` passed. The render test validates pixel output rather than full screen layout or gesture interactions. Manual checks remain for cropping gestures, full screens, actual notification delivery, and iOS 17 runtime behavior; real multi-device collaboration is not implemented.
 # SyncPix
